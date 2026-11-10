@@ -102,8 +102,10 @@ output filenames.
 
 For stationary two-dimensional normal diffusion,
 
-$$D_{\mathrm{app}}=\frac14\frac{d\,\mathrm{MSD}_{xy}(\tau)}{d\tau},
-\qquad 1\;\mathrm{\mathring A^2/ps}=10^{-8}\;\mathrm{m^2/s}.$$
+$$
+D_{\mathrm{app}}=\frac14\frac{d\,\mathrm{MSD}_{xy}(\tau)}{d\tau},
+\qquad 1\;\mathrm{\mathring A^2/ps}=10^{-8}\;\mathrm{m^2/s}.
+$$
 
 The code unwraps periodic crossings before removing substrate translation.
 Time-origin averages use only valid pairs within continuous segments. A
