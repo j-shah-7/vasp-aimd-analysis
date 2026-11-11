@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Raw fixed-cell VASP AIMD processing for gold/silver/copper folder trees.
+"""Raw fixed-cell VASP AIMD processing for metal/condition folder trees.
 
 Place in nvac-diff or pristine and run this file. No Perl, Bash, or pre-extracted
 CSV/XYZ files are required. Large raw movies are streamed; compact results are
-cached for subsequent plotting and MSD analysis. See the accompanying notebook
+cached for subsequent plotting and MSD analysis. Folder names are unrestricted:
+au-ps, aag-ps, ag-ps, cu-ps, gold, silver, and copper all work. Metal identity
+comes from structure contents. See the accompanying notebook
 for methods, settings, and references.
 """
 from pathlib import Path
@@ -1350,7 +1352,9 @@ def plot_comparisons(results, report_root, settings):
 METHODS_TEXT = """AIMD processing and diffusion analysis
 
 Run this program separately in nvac-diff and pristine. It discovers individual
-metal/condition series and numeric restart folders. It reads XDATCAR (OUTCAR
+metal/condition series and numeric restart folders. Folder names such as au-ps,
+aag-ps, ag-ps, or cu-ps do not need renaming; elements come from the structures.
+It reads XDATCAR (OUTCAR
 positions are a fallback), OSZICAR/stdout (OUTCAR thermodynamics are a fallback),
 POSCAR/CONTCAR, and INCAR. Perl/Bash and pre-extracted files are not required.
 
@@ -1457,7 +1461,7 @@ def process_root(root, settings=None, show_plots=False):
         raise ValueError("energy_field must be E, F, or E0.")
     cases = discover_cases(root)
     if not cases:
-        raise ValueError(f"No raw MD series found below {root}. Expected gold/silver/copper with numbered run folders, or raw files directly in each metal folder.")
+        raise ValueError(f"No raw MD series found below {root}. Expected metal folders such as au-ps/aag-ps/cu-ps with numbered runs, or raw files directly in each metal folder. Folder spelling does not determine the element.")
     output = root / "AIMD_processed"
     report_root = output / "reports" / datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     report_root.mkdir(parents=True)
