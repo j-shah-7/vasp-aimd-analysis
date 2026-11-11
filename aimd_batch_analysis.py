@@ -190,6 +190,11 @@ DEFAULTS = {
     "axis_size": 26,
     "tick_size": 20,
     "line_width": 4.0,
+    "show_lattice": True,
+    "lattice_colors": {"B": "#249B59", "N": "#3659C9"},
+    "lattice_alpha": 0.40,
+    "lattice_dot_size": 32,
+    "trajectory_padding_A": 2.5,
 }
 COLORS = {"Au": "#C49A08", "Ag": "#85898F", "Cu": "#B86C32", "Li": "#7A49A5"}
 IGNORE_DIRS = {"AIMD_processed", "AIMD_results", "AIMD_results_updated", "NEB_extracted",
@@ -1208,10 +1213,101 @@ def draw_segmented(ax, time_ps, values, segments, **kwargs):
         first = False
 
 
-def plot_case(result, settings, show=False):
-    import matplotlib.pyplot as plt
+def reference_lattice_xy(data):
+    """Static sites in the same COM/basis/origin frame as delta-x/y.
+
+    This uses cached geometry. VERSION is an extraction-cache version and is
+    deliberately unchanged for this plotting-only addition.
+    """
+    symbols = np.asarray(data["symbols"])
+    reference = np.asarray(data["reference_positions_A"], float)
+    cell = np.asarray(data["cell_A"], float)
+    host = np.isin(symbols, list(HOST_ELEMENTS))
+    if not np.any(host) or reference.shape != (len(symbols), 3):
+        raise ValueError("Cached reference geometry does not contain substrate positions.")
+    masses = np.asarray([MASSES[str(symbol)] for symbol in symbols[host]])
+    center = np.average(reference[host], axis=0, weights=masses)
+    e1 = cell[0] / np.linalg.norm(cell[0])
+    normal = np.cross(cell[0], cell[1]); normal /= np.linalg.norm(normal)
+    basis = np.asarray([e1, np.cross(normal, e1), normal])
+    sites = (reference - center) @ basis.T - np.asarray(data["positions_A"])[0]
+    return symbols, sites[:, :2], (cell[:2] @ basis.T)[:, :2]
+
+
+def tiled_sites_xy(points, lattice, xlim, ylim):
+    """Tile reference sites inside the displayed unwrapped-path view."""
+    points = np.asarray(points, float).reshape(-1, 2)
+    if not len(points):
+        return points
+    inverse = np.linalg.inv(lattice)
+    corners = np.asarray(list(product(xlim, ylim))) @ inverse
+    fractions = points @ inverse
+    lower = np.floor(corners.min(axis=0) - fractions.max(axis=0)).astype(int) - 1
+    upper = np.ceil(corners.max(axis=0) - fractions.min(axis=0)).astype(int) + 1
+    if np.prod(upper - lower + 1) > 10000:
+        raise ValueError("Trajectory view spans too many lattice tiles; set show_lattice=False.")
+    selected = []
+    for i, j in product(range(lower[0], upper[0] + 1), range(lower[1], upper[1] + 1)):
+        tile = points + np.asarray([i, j]) @ lattice
+        inside = ((tile[:, 0] >= xlim[0]) & (tile[:, 0] <= xlim[1])
+                  & (tile[:, 1] >= ylim[0]) & (tile[:, 1] <= ylim[1]))
+        if np.any(inside):
+            selected.append(tile[inside])
+    return np.unique(np.round(np.concatenate(selected), 9), axis=0) if selected else np.empty((0, 2))
+
+
+def xy_plot_data(result, settings):
+    data = result["extracted"]["data"]
+    mask = np.ones(len(data["time_ps"]), bool)
+    if settings["analysis_end_ps"] is not None:
+        mask &= data["time_ps"] <= settings["analysis_end_ps"]
+    if not np.any(mask):
+        raise ValueError("The trajectory plot time selection contains no saved frames.")
+    relative = data["positions_A"][mask] - data["positions_A"][0]
+    return data["time_ps"][mask], relative[:, :2], data["segment_ids"][mask]
+
+
+def draw_xy_trajectory(ax, result, settings, normalization=None):
     from matplotlib.collections import LineCollection
     from matplotlib.colors import Normalize
+    t, xy, segments = xy_plot_data(result, settings)
+    center = (xy.min(axis=0) + xy.max(axis=0)) / 2
+    span = max(float(np.ptp(xy[:, 0])), float(np.ptp(xy[:, 1]))) + 2 * settings["trajectory_padding_A"]
+    xlim, ylim = (center[0] - span / 2, center[0] + span / 2), (center[1] - span / 2, center[1] + span / 2)
+    data = result["extracted"]["data"]
+    if settings["show_lattice"] and np.isin(data["symbols"], ("B", "N")).any():
+        symbols, reference, lattice = reference_lattice_xy(data)
+        for element in ("B", "N"):
+            sites = tiled_sites_xy(reference[symbols == element], lattice, xlim, ylim)
+            if len(sites):
+                ax.scatter(sites[:, 0], sites[:, 1], s=settings["lattice_dot_size"],
+                           c=settings["lattice_colors"][element], alpha=settings["lattice_alpha"],
+                           edgecolors="none", zorder=0, label=element, rasterized=True)
+    normalization = normalization or Normalize(float(t[0]), float(t[-1]) if t[-1] > t[0] else float(t[0] + 1))
+    collection = None
+    for identifier in np.unique(segments):
+        ids = np.flatnonzero(segments == identifier)
+        stride = max(1, int(math.ceil(len(ids) / 25000)))
+        ids = np.unique(np.r_[ids[::stride], ids[-1]])
+        if len(ids) > 1:
+            points = xy[ids]
+            collection = LineCollection(np.stack([points[:-1], points[1:]], axis=1),
+                                        cmap="viridis", norm=normalization,
+                                        linewidth=settings["line_width"], zorder=3)
+            collection.set_array(t[ids][:-1]); ax.add_collection(collection)
+    ax.scatter(*xy[0], facecolors="white", edgecolors="black", linewidths=2,
+               s=100, label="Start", zorder=5)
+    ax.scatter(*xy[-1], color="red", marker="x", linewidths=3,
+               s=100, label="End", zorder=6)
+    metal = result["extracted"]["metadata"]["metal"]
+    ax.set(xlim=xlim, ylim=ylim, xlabel="Δx (Å)", ylabel="Δy (Å)", title=f"{metal}: lateral migration")
+    ax.set_aspect("equal", adjustable="box")
+    ax.legend(fontsize=14, ncol=2, loc="upper right")
+    return collection
+
+
+def plot_case(result, settings, show=False):
+    import matplotlib.pyplot as plt
     set_plot_style(settings)
     data = result["extracted"]["data"]
     metadata = result["extracted"]["metadata"]
@@ -1265,24 +1361,8 @@ def plot_case(result, settings, show=False):
     axes[3].legend(fontsize=max(12, settings["font_size"] - 4))
     fig.tight_layout(); save_figure(fig, folder, "coordinates_and_r", settings); figs.append(fig)
 
-    fig, ax = plt.subplots(figsize=(9, 7))
-    normalization = Normalize(float(t[0]), float(t[-1]) if t[-1] > t[0] else float(t[0] + 1))
-    collection = None
-    for identifier in np.unique(segments):
-        idx = np.flatnonzero(segments == identifier)
-        # Display thinning only; raw exports/MSD use their independently configured sampling.
-        idx = idx[::max(1, int(math.ceil(len(idx) / 25000)))]
-        if len(idx) < 2:
-            continue
-        points = relative[idx, :2]
-        lines = np.stack([points[:-1], points[1:]], axis=1)
-        collection = LineCollection(lines, cmap="viridis", norm=normalization, linewidth=2)
-        collection.set_array(t[idx][:-1]); ax.add_collection(collection)
-    ax.scatter(relative[0, 0], relative[0, 1], color="green", s=60, label="Start", zorder=5)
-    ax.scatter(relative[-1, 0], relative[-1, 1], color="red", marker="x", s=80, label="End", zorder=5)
-    ax.autoscale(); ax.set_aspect("equal", adjustable="datalim")
-    ax.set(xlabel="Δx (Å)", ylabel="Δy (Å)", title=f"{metal}: lateral migration")
-    ax.legend(fontsize=14)
+    fig, ax = plt.subplots(figsize=(10, 9))
+    collection = draw_xy_trajectory(ax, result, settings)
     if collection is not None:
         colorbar = fig.colorbar(collection, ax=ax, pad=.03); colorbar.set_label("Time (ps)", fontsize=20)
     fig.tight_layout(); save_figure(fig, folder, "xy_trajectory", settings); figs.append(fig)
@@ -1328,7 +1408,31 @@ def plot_case(result, settings, show=False):
 
 def plot_comparisons(results, report_root, settings):
     import matplotlib.pyplot as plt
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import Normalize
     set_plot_style(settings)
+    order = {metal: i for i, metal in enumerate(COLORS)}
+    results = sorted(results, key=lambda r: (order.get(r["extracted"]["metadata"]["metal"], 99), r["case"]["relative"]))
+    if results:
+        # Each condition retains its own spatial origin and reference lattice.
+        plotted_times = [xy_plot_data(result, settings)[0] for result in results]
+        low, high = min(float(t[0]) for t in plotted_times), max(float(t[-1]) for t in plotted_times)
+        norm = Normalize(low, high if high > low else low + 1)
+        columns = min(3, len(results)); rows = int(math.ceil(len(results) / columns))
+        fig, axes = plt.subplots(rows, columns, figsize=(8.3 * columns, 8 * rows),
+                                 squeeze=False, constrained_layout=True)
+        used = []
+        for ax, result in zip(axes.flat, results):
+            draw_xy_trajectory(ax, result, settings, norm)
+            metal = result["extracted"]["metadata"]["metal"]
+            ax.set_title(f"{metal}\n{result['case']['relative']}", fontsize=settings["font_size"])
+            used.append(ax)
+        for ax in list(axes.flat)[len(results):]:
+            ax.set_visible(False)
+        fig.colorbar(ScalarMappable(norm=norm, cmap="viridis"), ax=used,
+                     shrink=.72, pad=.025, label="Time (ps)")
+        save_figure(fig, report_root, "comparison_xy_trajectories", settings)
+        plt.close(fig)
     for group in ("whole", "equilibrated", "post"):
         fig, ax = plt.subplots(figsize=(10, 7))
         plotted = 0
@@ -1413,6 +1517,12 @@ at the end of the continuous observed segment, not an infinite lifetime.
 Energy columns are explicit: E is VASP extended-system total energy, F/TOTEN is
 electronic free energy, and E0 is the sigma->0 value. energy_eV in the raw combined
 CSV retains E for compatibility; energy_field selects the plotted column only.
+
+XY migration figures show static reference B/N sites, projected into the same
+substrate-COM/basis frame and initial-metal origin as the metal displacement.
+Periodic reference sites are repeated only inside the plotted view. They do not
+represent instantaneous B/N vibrations. The across-case XY comparison keeps
+each condition in its own panel and uses one shared physical-time color scale.
 Energy shifts are not electrical switching energy. Temperature is not inferred
 from position fluctuations. No thermodynamic equilibration time is detected
 automatically; the configurable default exclusion of 1 ps needs inspection.
