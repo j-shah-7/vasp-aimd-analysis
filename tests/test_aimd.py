@@ -103,6 +103,9 @@ class RawExtractionTests(unittest.TestCase):
         nb = json.loads((ROOT / "hbn_aimd_local_analysis.ipynb").read_text())
         self.assertEqual("".join(nb["cells"][3]["source"]).strip(),
                          (ROOT / "hbn_aimd_analysis.py").read_text().strip())
+        nb = json.loads((ROOT / "aimd_batch_analysis.ipynb").read_text())
+        self.assertEqual("".join(nb["cells"][4]["source"]).strip(),
+                         (ROOT / "aimd_batch_analysis.py").read_text().split("\n\ndef main(argv=None):", 1)[0].strip())
 
 
 if __name__ == "__main__":
