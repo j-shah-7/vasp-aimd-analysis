@@ -5,7 +5,7 @@ No Perl/Bash conversion or existing temperature/energy CSV is required.
 
 ## Run the Python script
 
-1. Copy the Python file into `nvac-diff`, alongside the `gold`, `silver` and `copper` folders.
+1. Copy the Python file into `nvac-diff`, alongside the `au-ps`, `aag-ps` and `cu-ps` folders.
 2. Run it with your Python 3 environment in VS Code, or open a terminal in that folder and run:
 
    ```powershell
@@ -36,7 +36,7 @@ cell. It contains its own processing code; the `.py` file is optional.
 
 ## Input layouts and automatic processing
 
-The reader finds numeric restart folders such as `gold/1`, `gold/2`, etc., also
+The reader finds numeric restart folders such as `au-ps/1`, `au-ps/2`, etc., also
 under an extra condition folder such as `gold/au-100ps/1`. It sorts runs
 numerically. Raw files directly inside a metal folder also work.
 
@@ -52,7 +52,10 @@ Compressed `.gz`, `.bz2` and `.xz` files can be read without unpacking. If OUTCA
 is the only trajectory source, provide a readable POSCAR or CONTCAR as the initial
 structure. Fixed cell vectors and consistent atom ordering are required.
 
-Metal identity comes from the structure, not the folder spelling. The code
+Metal identity comes from the structure, not the folder spelling. `au-ps`,
+`aag-ps`, `ag-ps`, `cu-ps`, `gold`, `silver` and `copper` all work. No
+folder-name mapping or renaming is needed. The notebook discovery table shows
+the folder and the detected element before extraction. The code
 tracks one Au/Ag/Cu/Li atom. With multiple metal atoms, select its 1-based index
 in the notebook/settings. N/B vacancy classification uses composition and a
 three-neighbor geometric check; inspect the reported atom numbers. Pristine
