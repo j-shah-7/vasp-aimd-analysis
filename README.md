@@ -5,7 +5,8 @@ extraction, combined trajectories, temperature/energy, metal migration plots,
 time-origin-averaged MSD, apparent diffusion slopes and vacancy residence.
 
 Developed for Jameela Fatheema's Au/Ag/Cu diffusion studies on pristine,
-B-vacancy and N-vacancy h-BN. Two complementary workflows are included.
+B-vacancy and N-vacancy h-BN. Raw analysis, figure analysis and comparison of
+saved AIMD/NEB results are included.
 
 ## Choose a workflow
 
@@ -13,8 +14,22 @@ B-vacancy and N-vacancy h-BN. Two complementary workflows are included.
 |---|---|---|
 | Raw batch analysis | `aimd_batch_analysis.py` or `aimd_batch_analysis.ipynb` | Start from raw numbered runs in `nvac-diff`, `pristine`, or another metal/condition tree. No Perl/Bash preprocessing. |
 | h-BN figure and capture analysis | `hbn_aimd_local_analysis.ipynb` | The existing B-vacancy dataset, lattice-background trajectories, capture/crossing analysis and cached figure revisions. |
+| Combine saved MD and NEB outputs | `combine_neb_aimd_results.py` | Read the completed notebook CSV/JSON exports from two sibling folders; compare conditions, profiles, approximate rates and MD diagnostics. See [the combined-analysis guide](docs/combined_analysis.md). |
 | Importable h-BN functions | `hbn_aimd_analysis.py` | Functions matching the current embedded h-BN notebook module. This module is imported by Python; it is not a standalone CLI. |
 | Historical utilities | `legacy/` | Earlier CSV/XYZ conversion and combining scripts; see `legacy/README.md` before use. |
+
+For the combined analysis, copy `combine_neb_aimd_results.py` into your main
+folder beside `folder-md` and `folderm1m2m3m4`, then run:
+
+```powershell
+python .\combine_neb_aimd_results.py
+```
+
+Keep the completed notebook output folders inside those two input folders.
+The script writes `Combined_analysis/<timestamp>/comparison_summary.csv` plus
+supporting tables and figures. It does not repeat raw-file extraction. Its
+formal rates use the NEB workflow's approximate 1D frequencies; analytical
+hopping diffusivity requires explicit equivalent-hop settings.
 
 ## Install
 
