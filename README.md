@@ -16,6 +16,7 @@ saved AIMD/NEB results are included.
 | h-BN figure and capture analysis | `hbn_aimd_local_analysis.ipynb` | The existing B-vacancy dataset, lattice-background trajectories, capture/crossing analysis and cached figure revisions. |
 | Combine saved MD and NEB outputs | `combine_neb_aimd_results.py` | Read the completed notebook CSV/JSON exports from two sibling folders; compare conditions, profiles, approximate rates and MD diagnostics. See [the combined-analysis guide](docs/combined_analysis.md). |
 | Importable h-BN functions | `hbn_aimd_analysis.py` | Functions matching the current embedded h-BN notebook module. This module is imported by Python; it is not a standalone CLI. |
+| B/N lattice GIF replacement | `hbn_animation_with_lattice.py` | Reuse already loaded h-BN trajectories and add the static B/N lattice to GIFs. See [replacement-cell instructions](docs/lattice_and_animation.md). |
 | Historical utilities | `legacy/` | Earlier CSV/XYZ conversion and combining scripts; see `legacy/README.md` before use. |
 
 For the combined analysis, copy `combine_neb_aimd_results.py` into your main
@@ -109,6 +110,9 @@ are in `raw_cache/<case>/<signature>/`. New analysis reports go into
 `reports/<timestamp>/`, with per-case and cross-metal results:
 
 - Combined temperature/energy CSV, per-run CSVs, combined XDATCAR and XYZ movie.
+- Individual metal XY paths with green B/blue N reference sites and
+  `comparison_xy_trajectories` showing every successful case with a shared time
+  color scale. The notebook preview shows every case by default.
 - Full tracked-metal coordinates, vacancy distance/height and restart audit.
 - Temperature/energy, x/y/height/r, XY trajectory, MSD and scaling plots.
 - Whole/equilibrated/post-residence MSD CSVs, apparent slope summaries and block diagnostics.
