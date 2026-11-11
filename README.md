@@ -36,8 +36,8 @@ earlier h-BN table/Excel/animation workflow.
 
 ## Raw runs: quick start
 
-Copy `aimd_batch_analysis.py` into `nvac-diff`, beside `gold`, `silver` and
-`copper`, then run it. Repeat with another copy in `pristine`:
+Copy `aimd_batch_analysis.py` into `nvac-diff`, beside `au-ps`, `aag-ps` and
+`cu-ps`, then run it. Repeat with another copy in `pristine`:
 
 ```powershell
 python .\aimd_batch_analysis.py
@@ -55,7 +55,10 @@ The notebook is self-contained: set `ROOT` in its first settings cell and run
 the cells in order. Check the discovery table before processing. It does not
 require its companion `.py` file.
 
-Expected inputs include `gold/1/XDATCAR`, `gold/2/XDATCAR`, etc.; an extra
+Your folder names are accepted without a mapping: `au-ps`, `aag-ps` (or
+`ag-ps`), and `cu-ps`. The element is read from structure contents. The
+notebook discovery table previews both folder and metal identity before processing.
+Expected inputs include `au-ps/1/XDATCAR`, `au-ps/2/XDATCAR`, etc.; an extra
 condition level such as `gold/au-100ps/1` and raw files directly inside a metal
 folder also work. The reader uses XDATCAR, OSZICAR/stdout, INCAR and
 POSCAR/CONTCAR, with OUTCAR fallbacks. Compressed `.gz`, `.bz2` and `.xz` files
@@ -68,6 +71,21 @@ the run audit if timing defaults were needed. Fixed cells and consistent atom
 ordering are required. The default restart policy checks CONTCAR→POSCAR
 geometry; `strict` additionally requires saved ionic velocity matching, while
 `split` excludes every cross-restart MSD pair.
+
+## Run order and connection to NEB
+
+1. Analyze one `nvac-diff` dataset with `aimd_batch_analysis.ipynb` and check its
+   discovery table before running the extraction.
+2. Repeat with a separate copy in `pristine` and that dataset's `ROOT` path.
+3. Use `neb_extract_and_review.ipynb` from the NEB repository inside each NEB
+   parent folder containing `00`, `01`, ... . Set its `NEB_ROOT` accordingly.
+
+The NEB and MD notebooks process separate existing calculations. Neither needs
+the other's output to run. NEB describes the static migration energy landscape;
+MD describes the observed temperature, motion, capture and residence over time.
+Each notebook contains its own processing code, so running its companion `.py`
+file as well is optional. The earlier `hbn_aimd_local_analysis.ipynb` is for the
+existing B-vacancy figure workflow and is not needed to preprocess these raw runs.
 
 ## Outputs and settings
 
